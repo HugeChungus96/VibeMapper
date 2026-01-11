@@ -37,6 +37,8 @@ A Windows application that uses [Intiface Central](https://intiface.com/central/
 
 This did not happen on my machines but Windows Defender might tell you this app or Intiface Central is a virus, this is probably because of the mouse, keyboard, and controller hooks, feel free to tell it to kick rocks.
 
+If your Intiface uses a different port, edit the port.txt file with the port, save, and VibeMapper should use that one instead.
+
 ## Safety & Privacy
 - This app runs with global input hooks - it can see your keystrokes/clicks when active
 - Your device connection data stays local, nothing gets sent anywhere
