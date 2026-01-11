@@ -35,11 +35,25 @@ namespace ToyControlApp.Services
                 _client.DeviceRemoved += OnDeviceRemoved;
                 _client.ServerDisconnect += OnServerDisconnect;
 
-                // Connect to Intiface Central (default port 12345)
-                var connector = new ButtplugWebsocketConnector(new Uri("ws://localhost:12345"));
+                // Read port from config file, default to 12345 if file doesn't exist or is invalid
+                int port = 12345;
+                string configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "port.txt");
+
+                if (File.Exists(configPath))
+                {
+                    string content = File.ReadAllText(configPath).Trim();
+                    if (int.TryParse(content, out int parsedPort))
+                    {
+                        port = parsedPort;
+                    }
+                }
+
+                System.Windows.MessageBox.Show($"Using port: {port}\nConfig path: {configPath}");
+
+                var connector = new ButtplugWebsocketConnector(new Uri($"ws://localhost:{port}"));
                 await _client.ConnectAsync(connector);
 
-                ConnectionStatusChanged?.Invoke(this, "Connected to Buttplug Server");
+                ConnectionStatusChanged?.Invoke(this, $"Connected to Buttplug Server on port {port}");
 
                 // Start scanning for devices
                 await _client.StartScanningAsync();
