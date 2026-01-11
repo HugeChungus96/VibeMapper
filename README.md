@@ -45,7 +45,7 @@ This did not happen on my machines but Windows Defender might tell you this app 
 - Don't blame me if you accidentally activate something during a work meeting
 
 ## Special Thanks
-Special thanks to [Izzy Sullivan](https://www.instagram.com/izzy_sullivan_designs/) for the adorable logo.
+Special thanks to [Izzy Sullivan](https://www.instagram.com/akangelic/) for the adorable logo.
 
 ## Final Note
 This project was born out of my surprise at not being able to find anything similar, so feel free the link me another tool that does exactly this so I can go bash my head against the nearest wall. This was my first C# .NET project, therefore the code is probably ass, please excuse or give it a go at fixing it yourself if you are interested. I probably will not update this beyond keeping it functional and relatively bug free so fork the crap out of it if you want. If you have any issues getting it working let me know and I'll do my best at helping you out.
