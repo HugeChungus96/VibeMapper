@@ -70,6 +70,9 @@ namespace ToyControlApp.Services
                 _isActive = false;
                 _pollTimer.Change(Timeout.Infinite, Timeout.Infinite);
                 _pressedInputs.Clear();
+                // Clear registered bindings so switching profiles doesn't leave stale
+                // controller bindings active after the hook is restarted.
+                _controllerBindings.Clear();
             }
         }
 

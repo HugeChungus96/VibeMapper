@@ -70,16 +70,29 @@ namespace ToyControlApp
 
         private void KeyTextBox_KeyDown(object sender, KeyEventArgs e)
         {
-            // Convert WPF key to Windows Forms key
-            var key = (System.Windows.Forms.Keys)KeyInterop.VirtualKeyFromKey(e.Key);
+            // WPF reports Alt as Key.System; pull the real key out of SystemKey in that case.
+            // This is also where bindings to Alt-modified keys can be captured later.
+            var wpfKey = e.Key == Key.System ? e.SystemKey : e.Key;
 
-            // Ignore modifier keys alone
+            // Convert WPF key to Windows Forms key
+            var key = (System.Windows.Forms.Keys)KeyInterop.VirtualKeyFromKey(wpfKey);
+
+            // Ignore modifier keys alone (don't allow binding to just a modifier)
             if (key == System.Windows.Forms.Keys.ShiftKey ||
                 key == System.Windows.Forms.Keys.ControlKey ||
+                key == System.Windows.Forms.Keys.Menu || // Alt
+                key == System.Windows.Forms.Keys.LMenu ||
+                key == System.Windows.Forms.Keys.RMenu ||
+                key == System.Windows.Forms.Keys.LShiftKey ||
+                key == System.Windows.Forms.Keys.RShiftKey ||
+                key == System.Windows.Forms.Keys.LControlKey ||
+                key == System.Windows.Forms.Keys.RControlKey ||
                 key == System.Windows.Forms.Keys.Alt ||
                 key == System.Windows.Forms.Keys.LWin ||
-                key == System.Windows.Forms.Keys.RWin)
+                key == System.Windows.Forms.Keys.RWin ||
+                key == System.Windows.Forms.Keys.None)
             {
+                e.Handled = true; // still swallow so the textbox doesn't try to handle it
                 return;
             }
 
@@ -87,6 +100,8 @@ namespace ToyControlApp
             KeyTextBox.Text = key.ToString();
 
             UpdateOkButtonState();
+            // Always mark handled so WPF/TextBox doesn't try to interpret the key
+            // (this is the root cause of Space being swallowed when using KeyDown).
             e.Handled = true;
         }
 

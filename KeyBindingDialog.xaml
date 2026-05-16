@@ -29,10 +29,10 @@
         </Grid.RowDefinitions>
 
         <Label Grid.Row="0" Content="Key:" FontWeight="Bold" Margin="0,0,0,5" Style="{StaticResource DarkLabelStyle}"/>
-        <TextBox Grid.Row="1" Name="KeyTextBox" 
-                 IsReadOnly="True" 
-                 KeyDown="KeyTextBox_KeyDown" 
-                 Text="Press a key..." 
+        <TextBox Grid.Row="1" Name="KeyTextBox"
+                 IsReadOnly="True"
+                 PreviewKeyDown="KeyTextBox_KeyDown"
+                 Text="Press a key..."
                  Height="25"
                  VerticalContentAlignment="Center"
                  Background="{StaticResource DarkSurfaceBrush}"

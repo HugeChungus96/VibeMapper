@@ -46,6 +46,22 @@ If your Intiface uses a different port, edit the port.txt file with the port, sa
 - Use F8 panic button if things get weird
 - Don't blame me if you accidentally activate something during a work meeting
 
+## Known Limitations
+
+### Anti-Cheat Games (Marvel Rivals, Valorant, Fortnite, etc.)
+Games with kernel-level anti-cheat (ACE-AC, Vanguard, BattlEye, EAC) block low-level
+Windows keyboard and mouse hooks for security reasons. This means **keyboard and mouse
+bindings won't trigger while these games have focus**. Controller (XInput) bindings
+keep working because XInput polls the controller state directly rather than installing
+a hook, so it isn't seen as an input-monitoring threat. **Workaround: use controller
+bindings for anti-cheat games.**
+
+### Multiple identical devices
+If you have several copies of the same toy connected (e.g. 3 Hush 2s), Buttplug
+reports them with the same `Name`. A single binding to that name will now control
+**all** matching devices in parallel — you don't need to (and can't) add separate
+bindings per copy.
+
 ## Special Thanks
 Special thanks to [Izzy Sullivan](https://www.instagram.com/akangelic/) for the adorable logo.
 

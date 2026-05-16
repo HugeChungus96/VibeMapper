@@ -55,6 +55,9 @@ namespace ToyControlApp.Services
             _globalHook?.Dispose();
             _globalHook = null;
             _pressedInputs.Clear();
+            // Clear registered bindings so switching profiles doesn't leave stale
+            // mouse bindings active after the hook is restarted.
+            _mouseBindings.Clear();
             IsActive = false;
         }
 

@@ -54,6 +54,9 @@ namespace ToyControlApp.Services
             _globalHook?.Dispose();
             _globalHook = null;
             _pressedKeys.Clear();
+            // Clear registered bindings so a profile switch doesn't leave stale
+            // entries that would re-fire when StartHook is called for a new profile.
+            _keyBindings.Clear();
             IsActive = false;
         }
 

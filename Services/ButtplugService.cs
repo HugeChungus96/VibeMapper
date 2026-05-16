@@ -1,6 +1,7 @@
 ﻿using Buttplug.Client;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -99,121 +100,167 @@ namespace ToyControlApp.Services
         {
             if (!IsConnected) return;
 
-            var device = _devices.FirstOrDefault(d => d.Name == deviceName);
-            if (device == null) return;
+            // Match ALL devices sharing this name. If a user has 3 Hush 2s connected
+            // they all show up as "LVS-Hush2" and a binding to that name should drive
+            // every instance simultaneously, not just the first one in the list.
+            var devices = _devices.Where(d => d.Name == deviceName).ToList();
+            if (devices.Count == 0) return;
+
+            // Ensure intensity is between 0.0 and 1.0
+            intensity = Math.Max(0.0, Math.Min(1.0, intensity));
+
+            // For Lovense toys (20 levels), round to nearest 5% increment
+            double roundedIntensity = Math.Round(intensity * 20) / 20.0;
+
+            // Additional safety: if rounded intensity is 0 but original was > 0, set to minimum
+            if (roundedIntensity == 0.0 && intensity > 0.0)
+            {
+                roundedIntensity = 0.05; // 5% minimum
+            }
+
+            System.Diagnostics.Debug.WriteLine($"Device(s) '{deviceName}' x{devices.Count}: Original intensity {intensity:F3} -> Rounded intensity {roundedIntensity:F3} ({roundedIntensity * 100:F0}%)");
+
+            // Fire all devices in parallel so 3 identical toys vibrate together
+            var startTasks = new List<Task>();
+            foreach (var device in devices)
+            {
+                if (device.VibrateAttributes.Count == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Device {deviceName} (index {device.Index}) does not support vibration; skipping");
+                    continue;
+                }
+
+                var capturedDevice = device;
+                startTasks.Add(SafeVibrateAsync(capturedDevice, roundedIntensity));
+            }
 
             try
             {
-                // Check if device supports vibration
-                if (device.VibrateAttributes.Count == 0)
+                await Task.WhenAll(startTasks);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error starting vibration for one or more '{deviceName}' devices: {ex.Message}");
+            }
+
+            // Schedule stop for each device after duration
+            if (durationMs > 0)
+            {
+                foreach (var device in devices)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Device {deviceName} does not support vibration");
-                    return;
-                }
-
-                // FIXED: Properly handle intensity for discrete levels
-                // Ensure intensity is between 0.0 and 1.0
-                intensity = Math.Max(0.0, Math.Min(1.0, intensity));
-
-                // For Lovense toys (20 levels), round to nearest 5% increment
-                // This ensures we hit the discrete intensity levels properly
-                double roundedIntensity = Math.Round(intensity * 20) / 20.0;
-
-                // Additional safety: if rounded intensity is 0 but original was > 0, set to minimum level
-                if (roundedIntensity == 0.0 && intensity > 0.0)
-                {
-                    roundedIntensity = 0.05; // 5% minimum
-                }
-
-                System.Diagnostics.Debug.WriteLine($"Device {deviceName}: Original intensity {intensity:F3} -> Rounded intensity {roundedIntensity:F3} ({roundedIntensity * 100:F0}%)");
-
-                // Start vibration with properly rounded intensity
-                await device.VibrateAsync(roundedIntensity);
-
-                // Stop after duration
-                if (durationMs > 0)
-                {
+                    if (device.VibrateAttributes.Count == 0) continue;
+                    var capturedDevice = device;
                     _ = Task.Delay(durationMs).ContinueWith(async _ =>
                     {
                         try
                         {
-                            await device.Stop();
+                            await capturedDevice.Stop();
                         }
                         catch (Exception ex)
                         {
-                            // Handle device disconnection gracefully
-                            System.Diagnostics.Debug.WriteLine($"Error stopping device: {ex.Message}");
+                            System.Diagnostics.Debug.WriteLine($"Error stopping device (index {capturedDevice.Index}): {ex.Message}");
                         }
                     });
                 }
             }
+        }
+
+        private static async Task SafeVibrateAsync(ButtplugClientDevice device, double intensity)
+        {
+            try
+            {
+                await device.VibrateAsync(intensity);
+            }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error controlling device {deviceName}: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error vibrating device '{device.Name}' (index {device.Index}): {ex.Message}");
             }
         }
 
-        // NEW: Start hold mode vibration
+        // Start hold mode vibration — fans out to all devices sharing this name.
         public async Task StartHoldVibrateAsync(string deviceName, double intensity)
         {
             if (!IsConnected) return;
 
-            var device = _devices.FirstOrDefault(d => d.Name == deviceName);
-            if (device == null) return;
+            var devices = _devices.Where(d => d.Name == deviceName).ToList();
+            if (devices.Count == 0) return;
+
+            // Process intensity the same way as regular vibration
+            intensity = Math.Max(0.0, Math.Min(1.0, intensity));
+            double roundedIntensity = Math.Round(intensity * 20) / 20.0;
+
+            if (roundedIntensity == 0.0 && intensity > 0.0)
+            {
+                roundedIntensity = 0.05; // 5% minimum
+            }
+
+            System.Diagnostics.Debug.WriteLine($"Hold Mode - Device(s) '{deviceName}' x{devices.Count}: Intensity {roundedIntensity:F3} ({roundedIntensity * 100:F0}%)");
+
+            var tasks = new List<Task>();
+            foreach (var device in devices)
+            {
+                if (device.VibrateAttributes.Count == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Device {deviceName} (index {device.Index}) does not support vibration; skipping");
+                    continue;
+                }
+                tasks.Add(SafeVibrateAsync(device, roundedIntensity));
+            }
 
             try
             {
-                // Check if device supports vibration
-                if (device.VibrateAttributes.Count == 0)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Device {deviceName} does not support vibration");
-                    return;
-                }
-
-                // Process intensity the same way as regular vibration
-                intensity = Math.Max(0.0, Math.Min(1.0, intensity));
-                double roundedIntensity = Math.Round(intensity * 20) / 20.0;
-
-                if (roundedIntensity == 0.0 && intensity > 0.0)
-                {
-                    roundedIntensity = 0.05; // 5% minimum
-                }
-
-                System.Diagnostics.Debug.WriteLine($"Hold Mode - Device {deviceName}: Intensity {roundedIntensity:F3} ({roundedIntensity * 100:F0}%)");
-
-                // Start continuous vibration
-                await device.VibrateAsync(roundedIntensity);
-
-                // Track this as a hold vibration (no automatic stop)
-                var holdKey = $"{deviceName}_hold";
-                _holdVibrationsTracking[holdKey] = Task.CompletedTask; // Just mark it as active
+                await Task.WhenAll(tasks);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error starting hold vibration for device {deviceName}: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error starting hold vibration for '{deviceName}': {ex.Message}");
             }
+
+            // Track this as a hold vibration (no automatic stop)
+            var holdKey = $"{deviceName}_hold";
+            _holdVibrationsTracking[holdKey] = Task.CompletedTask; // Just mark it as active
         }
 
-        // NEW: Stop hold mode vibration
+        // Stop hold mode vibration — stops every device sharing this name.
         public async Task StopHoldVibrateAsync(string deviceName)
         {
             if (!IsConnected) return;
 
-            var device = _devices.FirstOrDefault(d => d.Name == deviceName);
-            if (device == null) return;
+            var devices = _devices.Where(d => d.Name == deviceName).ToList();
+            if (devices.Count == 0) return;
+
+            System.Diagnostics.Debug.WriteLine($"Stopping hold vibration for '{deviceName}' x{devices.Count}");
+
+            var tasks = new List<Task>();
+            foreach (var device in devices)
+            {
+                var capturedDevice = device;
+                tasks.Add(SafeStopAsync(capturedDevice));
+            }
 
             try
             {
-                System.Diagnostics.Debug.WriteLine($"Stopping hold vibration for device {deviceName}");
-                await device.Stop();
-
-                // Remove from tracking
-                var holdKey = $"{deviceName}_hold";
-                _holdVibrationsTracking.Remove(holdKey);
+                await Task.WhenAll(tasks);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error stopping hold vibration for device {deviceName}: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error stopping hold vibration for '{deviceName}': {ex.Message}");
+            }
+
+            // Remove from tracking
+            var holdKey = $"{deviceName}_hold";
+            _holdVibrationsTracking.Remove(holdKey);
+        }
+
+        private static async Task SafeStopAsync(ButtplugClientDevice device)
+        {
+            try
+            {
+                await device.Stop();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error stopping device '{device.Name}' (index {device.Index}): {ex.Message}");
             }
         }
 

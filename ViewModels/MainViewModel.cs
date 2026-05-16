@@ -682,6 +682,27 @@ namespace ToyControlApp.ViewModels
                 if (controllerWasActive) StopControllerHook();
                 if (mouseWasActive) StopMouseHook();
 
+                // Defensive: clear registered bindings on the hook services even if
+                // they were inactive, so we never carry over bindings from a prior
+                // profile when the hooks are next started.
+                _keyboardHookService.ClearKeyBindings();
+                _controllerInputService.ClearControllerBindings();
+                _mouseHookService.ClearMouseBindings();
+
+                // Stop any vibrations that may still be running from the old profile
+                // (e.g. a hold-mode binding triggered just before the swap). Fire-and-forget
+                // so we don't block the profile load on a websocket round-trip.
+                if (_buttplugService.IsConnected)
+                {
+                    _ = _buttplugService.StopAllDevicesAsync().ContinueWith(t =>
+                    {
+                        if (t.Exception != null)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Error stopping devices during profile swap: {t.Exception.GetBaseException().Message}");
+                        }
+                    });
+                }
+
                 // Clear existing bindings
                 KeyBindings.Clear();
                 ControllerBindings.Clear();
